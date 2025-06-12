@@ -152,3 +152,4 @@ def delete_student(request, student_id):
         except Exception as e:
             return JsonResponse({'error': str(e)}, status=400)
     return JsonResponse({'error': 'Method not allowed'}, status=405)
+# ..................
