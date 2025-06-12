@@ -3,7 +3,7 @@ from django.views.decorators.csrf import csrf_exempt
 import json
 import uuid
 from student_api.mongo_config import db
-from bson import ObjectId  # Import ObjectId to handle potential old data
+from bson import ObjectId
 
 # Collections
 students_collection = db.students
@@ -28,11 +28,10 @@ def student_list(request):
             if email:
                 query['email'] = {'$regex': f'^{email}$', '$options': 'i'}
             if student_id:
-                query['_id'] = student_id
+                query['_id'] = {'$regex': f'^{student_id}$', '$options': 'i'}  # Case-insensitive match
 
             students = list(students_collection.find(query))
             for student in students:
-                # Convert _id to string if it's an ObjectId, then rename to id
                 student['id'] = str(student.pop('_id'))
             return JsonResponse(students, safe=False)
         except Exception as e:
@@ -60,16 +59,15 @@ def student_list(request):
             except ValueError:
                 return JsonResponse({'error': 'Age must be a valid integer'}, status=400)
 
-            # Generate a UUID for _id
             student_id = str(uuid.uuid4())
             student = {
-                '_id': student_id,  # Use UUID as _id
+                '_id': student_id,
                 'name': name,
                 'age': age,
                 'email': email
             }
             students_collection.insert_one(student)
-            student['id'] = student.pop('_id')  # _id is already a string
+            student['id'] = student.pop('_id')
             return JsonResponse(student, status=201)
         except Exception as e:
             return JsonResponse({'error': str(e)}, status=400)
@@ -87,7 +85,7 @@ def student_list(request):
             if not student_id:
                 return JsonResponse({'error': 'id query parameter is required to delete'}, status=400)
 
-            result = students_collection.delete_one({'_id': student_id})
+            result = students_collection.delete_one({'_id': {'$regex': f'^{student_id}$', '$options': 'i'}})  # Case-insensitive match
             if result.deleted_count > 0:
                 return JsonResponse({'message': 'Student deleted'})
             return JsonResponse({'error': 'Student not found'}, status=404)
@@ -99,9 +97,9 @@ def student_list(request):
 def read_student(request, student_id):
     if request.method == 'GET':
         try:
-            student = students_collection.find_one({'_id': student_id})
+            student = students_collection.find_one({'_id': {'$regex': f'^{student_id}$', '$options': 'i'}})  # Case-insensitive match
             if student:
-                student['id'] = str(student.pop('_id'))  # Convert _id to string
+                student['id'] = str(student.pop('_id'))
                 return JsonResponse(student)
             return JsonResponse({'error': 'Student not found'}, status=404)
         except Exception as e:
@@ -131,7 +129,7 @@ def update_student(request, student_id):
                     return JsonResponse({'error': 'Age must be a valid integer'}, status=400)
 
             result = students_collection.update_one(
-                {'_id': student_id},
+                {'_id': {'$regex': f'^{student_id}$', '$options': 'i'}},  # Case-insensitive match
                 {'$set': update_fields}
             )
             if result.modified_count:
@@ -145,11 +143,10 @@ def update_student(request, student_id):
 def delete_student(request, student_id):
     if request.method == 'DELETE':
         try:
-            result = students_collection.delete_one({'_id': student_id})
+            result = students_collection.delete_one({'_id': {'$regex': f'^{student_id}$', '$options': 'i'}})  # Case-insensitive match
             if result.deleted_count:
                 return JsonResponse({'message': 'Student deleted'})
             return JsonResponse({'error': 'Student not found'}, status=404)
         except Exception as e:
             return JsonResponse({'error': str(e)}, status=400)
     return JsonResponse({'error': 'Method not allowed'}, status=405)
-# ..................
